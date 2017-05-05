@@ -29,24 +29,12 @@ Summary of available functions:
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
-import numpy as np
 
-import os
-import re
-import sys
-import tarfile
-
-from six.moves import urllib
 import tensorflow as tf
-
-#import cifar10_input
+import re
 
 FLAGS = tf.app.flags.FLAGS
 
-# Basic model parameters.
-
-tf.app.flags.DEFINE_string('data_dir', '/tmp/cifar10_data',
-                           """Path to the CIFAR-10 data directory.""")
 tf.app.flags.DEFINE_boolean('use_fp16', False,
                             """Train the model using fp16.""")
 
@@ -54,6 +42,8 @@ tf.app.flags.DEFINE_boolean('use_fp16', False,
 IMAGE_SIZE = 227  # Taking full size
 
 # Global constants describing the t-lessv2 data set.
+
+# Basic model parameters.
 
 NUM_CLASSES = 30
 NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN = 37584  # 4
@@ -69,8 +59,6 @@ LEARNING_RATE_DECAY_FACTOR = 0.1  # Learning rate decay factor.
 # to differentiate the operations. Note that this prefix is removed from the
 # names of the summaries when visualizing a model.
 TOWER_NAME = 'tower'
-
-DATA_URL = 'http://www.cs.toronto.edu/~kriz/cifar-10-binary.tar.gz'
 
 
 def _activation_summary(x):
