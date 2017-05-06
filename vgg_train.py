@@ -13,19 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
-"""A binary to train CIFAR-10 using a single GPU.
-Accuracy:
-cifar10_train.py achieves ~86% accuracy after 100K steps (256 epochs of
-data) as judged by cifar10_eval.py.
-Speed: With batch_size 128.
-System        | Step Time (sec/batch)  |     Accuracy
-------------------------------------------------------------------
-1 Tesla K20m  | 0.35-0.60              | ~86% at 60K steps  (5 hours)
-1 Tesla K40m  | 0.25-0.35              | ~86% at 100K steps (4 hours)
-Usage:
-Please see the tutorial and website for how to download the CIFAR-10
-data set, compile the program and train the model.
-http://tensorflow.org/tutorials/deep_cnn/
+""" A VGG-16 implementation on TF-1.0
 """
 from __future__ import absolute_import
 from __future__ import division
@@ -47,11 +35,12 @@ FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_string('train_dir', os.getcwd() + '/logs/vgg_train_rgb_16bs01lr_SGD_data_pp',
                            """Directory where to write event logs """
                            """and checkpoint.""")
+
 tf.app.flags.DEFINE_integer('max_steps', 100000,
                             """Number of batches to run.""")
 
-tf.app.flags.DEFINE_integer('num_examples', 10000,
-                            """Number of examples to run.""")
+tf.app.flags.DEFINE_integer('num_examples', 3455,
+                            """Number of examples for evaluation to run.""")
 
 
 tf.app.flags.DEFINE_boolean('log_device_placement', False,
@@ -59,8 +48,7 @@ tf.app.flags.DEFINE_boolean('log_device_placement', False,
 tf.app.flags.DEFINE_integer('log_frequency', 10,
                             """How often to log results to the console.""")
 
-#tf.app.flags.DEFINE_float('INITIAL_LEARNING_RATE', 0.0000000001,
-tf.app.flags.DEFINE_float('INITIAL_LEARNING_RATE', 0.1,
+tf.app.flags.DEFINE_float('INITIAL_LEARNING_RATE', 0.01,
                            """Number of examples to run.""")
 
 tf.app.flags.DEFINE_integer('batch_size', 16,
@@ -71,25 +59,25 @@ IMAGE_SIZE = 227  # Taking full size
 # Global constants describing the t-lessv2 data set.
 
 NUM_CLASSES = 30
-NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN = 37584  # 4
+NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN = 3455#37584  # 4
 NUM_EXAMPLES_PER_EPOCH_FOR_EVAL = 3455
 
 EPOCHS_NUM = math.ceil(NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN / FLAGS.batch_size)
 
-testing_dataset =['/home/mikelf/Datasets/T-lessV2/shards/RGB_cropped/testing-00000-of-00004-rgb_cropped_canon_227.tfrecords',
-'/home/mikelf/Datasets/T-lessV2/shards/RGB_cropped/testing-00001-of-00004-rgb_cropped_canon_227.tfrecords',
-'/home/mikelf/Datasets/T-lessV2/shards/RGB_cropped/testing-00002-of-00004-rgb_cropped_canon_227.tfrecords',
-'/home/mikelf/Datasets/T-lessV2/shards/RGB_cropped/testing-00003-of-00004-rgb_cropped_canon_227.tfrecords']
+testing_dataset =['/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-00000-of-00004-full.tfrecords',
+'/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-00001-of-00004-full.tfrecords',
+'/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-00002-of-00004-full.tfrecords',
+'/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-00003-of-00004-full.tfrecords']
 
-training_dataset =['/home/mikelf/Datasets/T-lessV2/shards/RGB_cropped/train-00000-of-00004-rgb_cropped_canon_227.tfrecords',
-'/home/mikelf/Datasets/T-lessV2/shards/RGB_cropped/train-00001-of-00004-rgb_cropped_canon_227.tfrecords',
-'/home/mikelf/Datasets/T-lessV2/shards/RGB_cropped/train-00002-of-00004-rgb_cropped_canon_227.tfrecords',
-'/home/mikelf/Datasets/T-lessV2/shards/RGB_cropped/train-00003-of-00004-rgb_cropped_canon_227.tfrecords']
+training_dataset =['/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-00000-of-00004-full.tfrecords',
+'/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-00001-of-00004-full.tfrecords',
+'/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-00002-of-00004-full.tfrecords',
+'/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-00003-of-00004-full.tfrecords']
 
-validating_dataset =['/home/mikelf/Datasets/T-lessV2/shards/RGB_cropped/validate-00000-of-00004-rgb_cropped_canon_227.tfrecords',
-'/home/mikelf/Datasets/T-lessV2/shards/RGB_cropped/validate-00001-of-00004-rgb_cropped_canon_227.tfrecords',
-'/home/mikelf/Datasets/T-lessV2/shards/RGB_cropped/validate-00002-of-00004-rgb_cropped_canon_227.tfrecords',
-'/home/mikelf/Datasets/T-lessV2/shards/RGB_cropped/validate-00003-of-00004-rgb_cropped_canon_227.tfrecords']
+validating_dataset =['/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-00000-of-00004-full.tfrecords',
+'/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-00001-of-00004-full.tfrecords',
+'/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-00002-of-00004-full.tfrecords',
+'/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-00003-of-00004-full.tfrecords']
 
 
 EPOCHS_NUM = math.ceil(NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN / FLAGS.batch_size)
@@ -142,14 +130,14 @@ def read_and_decode(filename_queue, batch_size):
         serialized_example,
 
         features={
-            'image_raw_rgb': tf.FixedLenFeature([], tf.string),
-            'label': tf.FixedLenFeature([], tf.int64),
-            'index': tf.FixedLenFeature([], tf.int64),
-            'filename': tf.FixedLenFeature([], tf.string),
+            'image/encoded': tf.FixedLenFeature([], tf.string),
+            'image/class/label': tf.FixedLenFeature([], tf.int64),
+            'image/index': tf.FixedLenFeature([], tf.int64),
+            'image/filename': tf.FixedLenFeature([], tf.string)
         })
 
     # Convert from a scalar string tensor (whose single string has
-    image = tf.decode_raw(features['image_raw_rgb'], tf.uint8)
+    image = tf.image.decode_image(features['image/encoded'])
 
     image = tf.reshape(image, [IMAGE_SIZE, IMAGE_SIZE, 3])
     image.set_shape([IMAGE_SIZE, IMAGE_SIZE,3])
@@ -159,14 +147,15 @@ def read_and_decode(filename_queue, batch_size):
     distorted_image = tf.cast(image, tf.float32)
 
     # Randomly flip the image horizontally.
-    distorted_image = tf.image.random_flip_left_right(distorted_image)
+    #distorted_image = tf.image.random_flip_left_right(distorted_image)
 
     # Because these operations are not commutative, consider randomizing
     # the order their operation.
-    distorted_image = tf.image.random_brightness(distorted_image,
-                                                 max_delta=63)
-    distorted_image = tf.image.random_contrast(distorted_image,
-                                               lower=0.2, upper=1.8)
+    #distorted_image = tf.image.random_brightness(distorted_image,
+    #                                             max_delta=63)
+
+    #distorted_image = tf.image.random_contrast(distorted_image,
+    #                                           lower=0.2, upper=1.8)
 
     # Subtract off the mean and divide by the variance of the pixels.
     float_image = tf.image.per_image_standardization(distorted_image)
@@ -177,7 +166,10 @@ def read_and_decode(filename_queue, batch_size):
     print(image.get_shape())
 
     # Convert label from a scalar uint8 tensor to an int32 scalar.
-    label = tf.cast(features['label'], tf.int32) #- 1  # -1 because there is no background class
+    label = tf.cast(features['image/class/label'], tf.int32)
+    index = tf.cast(features['image/index'], tf.int32)
+
+    im_filename = tf.cast(features['image/filename'], tf.string)
 
     # Ensure that the random shuffling has good mixing properties.
     min_fraction_of_examples_in_queue = 0.4
@@ -188,9 +180,8 @@ def read_and_decode(filename_queue, batch_size):
     print('Filling queue with %d CIFAR images before starting to train. '
           'This will take a few minutes.' % min_queue_examples)
     # print(filenm)
-    index = tf.cast(features['index'], tf.int32)
 
-    filenm = tf.cast(features['filename'], tf.string)
+
 
     # Generate a batch of images and labels by building up a queue of examples.
     return _generate_image_and_label_batch(float_image, label,
@@ -206,14 +197,14 @@ def read_and_decode_validation(filename_queue, batch_size):
         serialized_example,
 
         features={
-            'image_raw_rgb': tf.FixedLenFeature([], tf.string),
-            'label': tf.FixedLenFeature([], tf.int64),
-            'index': tf.FixedLenFeature([], tf.int64),
-            'filename': tf.FixedLenFeature([], tf.string),
+            'image/encoded': tf.FixedLenFeature([], tf.string),
+            'image/class/label': tf.FixedLenFeature([], tf.int64),
+            'image/index': tf.FixedLenFeature([], tf.int64),
+            'image/filename': tf.FixedLenFeature([], tf.string)
         })
 
     # Convert from a scalar string tensor (whose single string has
-    image = tf.decode_raw(features['image_raw_rgb'], tf.uint8)
+    image = tf.image.decode_image(features['image/encoded'])
 
     image = tf.reshape(image, [IMAGE_SIZE, IMAGE_SIZE, 3])
     image.set_shape([IMAGE_SIZE, IMAGE_SIZE, 3])
@@ -225,15 +216,11 @@ def read_and_decode_validation(filename_queue, batch_size):
     # Subtract off the mean and divide by the variance of the pixels.
     float_image = tf.image.per_image_standardization(distorted_image)
 
-    filenm = tf.cast(features['filename'], tf.string)
+    label = tf.cast(features['image/class/label'], tf.int32)
+    index = tf.cast(features['image/index'], tf.int32)
 
-    # Convert label from a scalar uint8 tensor to an int32 scalar.
-    label = tf.cast(features['label'], tf.int32) #- 1  # -1 because there is no background class
+    im_filename = tf.cast(features['image/filename'], tf.string)
 
-    # label = features['image/class/label']
-    index = tf.cast(features['index'], tf.int32)
-
-    # Ensure that the random shuffling has good mixing properties.
     min_fraction_of_examples_in_queue = 0.4
     min_queue_examples = int(NUM_EXAMPLES_PER_EPOCH_FOR_EVAL *
                              min_fraction_of_examples_in_queue)
@@ -275,12 +262,9 @@ def train():
         #mode_eval = tf.placeholder(tf.bool, shape=())
         keep_prob = tf.placeholder(tf.float32)
 
-        angles = np.random.randint(0, 360, FLAGS.batch_size)
-        images = tf.contrib.image.rotate(images, angles)
-
         # Build a Graph that computes the logits predictions from the
         # inference model.
-        logits = vgg.inference(images, keep_prob)
+        logits, weigths = vgg.inference(images, keep_prob)
 
         # Calculate loss.
         loss = vgg.loss(logits, labels)
@@ -369,7 +353,7 @@ def train():
                 while step < num_iter:
                     images_batch, labels_batch, index_batch = sess.run([images_p, labels_p, indexs_p])
 
-                    predictions = sess.run([top_k_op],
+                    predictions, weigths_shows = sess.run([top_k_op, weigths],
                                            feed_dict={images: images_batch, labels: labels_batch, indexes: index_batch, keep_prob: 1.0})
 
                     true_count += np.sum(predictions)
@@ -384,6 +368,8 @@ def train():
                 precision = true_count / total_sample_count
 
                 print('%s: precision @ 1 = %.5f' % (datetime.now(), precision))
+
+                print(weigths_shows)
 
                 precision_test = np.concatenate((precision_test, [precision]))
                 steps_precision = np.concatenate((steps_precision, [EPOCH]))

@@ -37,23 +37,17 @@ FLAGS = tf.app.flags.FLAGS
 
 tf.app.flags.DEFINE_boolean('use_fp16', False,
                             """Train the model using fp16.""")
-
-# Global constants describing the CIFAR-10 data set.
-IMAGE_SIZE = 227  # Taking full size
-
-# Global constants describing the t-lessv2 data set.
-
 # Basic model parameters.
 
 NUM_CLASSES = 30
-NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN = 37584  # 4
+NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN = 3455#37584  # 4
 NUM_EXAMPLES_PER_EPOCH_FOR_EVAL = 3455
 
 # Constants describing the training process.
 MOVING_AVERAGE_DECAY = 0.9999  # The decay to use for the moving average.
 NUM_EPOCHS_PER_DECAY = 30  # Epochs after which learning rate decays.
 LEARNING_RATE_DECAY_FACTOR = 0.1  # Learning rate decay factor.
-#INITIAL_LEARNING_RATE = 0.000001  # Initial learning rate.
+
 
 # If a model is trained with multiple GPUs, prefix all Op names with tower_name
 # to differentiate the operations. Note that this prefix is removed from the
@@ -371,7 +365,7 @@ def inference(images, keep_prob):
 
         _activation_summary(fc3)
 
-    return fc3
+    return fc3, weights
 
 
 def loss(logits, labels):
@@ -385,7 +379,7 @@ def loss(logits, labels):
       Loss tensor of type float.
     """
     # Calculate the average cross entropy loss across the batch.
-    labels = tf.cast(labels, tf.int64)
+    #labels = tf.cast(labels, tf.int64)
     cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(
         labels=labels, logits=logits, name='cross_entropy_per_example')
     cross_entropy_mean = tf.reduce_mean(cross_entropy, name='cross_entropy')
