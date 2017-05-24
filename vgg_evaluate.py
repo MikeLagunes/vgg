@@ -69,16 +69,6 @@ testing_dataset =['/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-00
 '/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-00002-of-00004-full.tfrecords',
 '/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-00003-of-00004-full.tfrecords']
 
-training_dataset =['/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-00000-of-00004-full.tfrecords',
-'/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-00001-of-00004-full.tfrecords',
-'/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-00002-of-00004-full.tfrecords',
-'/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-00003-of-00004-full.tfrecords']
-
-validating_dataset =['/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-00000-of-00004-full.tfrecords',
-'/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-00001-of-00004-full.tfrecords',
-'/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-00002-of-00004-full.tfrecords',
-'/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-00003-of-00004-full.tfrecords']
-
 
 EPOCHS_NUM = math.ceil(NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN / FLAGS.batch_size)
 
@@ -236,14 +226,9 @@ def read_and_decode_validation(filename_queue, batch_size):
 
 
 # Getting data for feeding------------------------------------------------------------------------------------------------------
-
-filename_queue_training = tf.train.string_input_producer(training_dataset, name='queue_runner1', shuffle=False)
-filename_queue_validation = tf.train.string_input_producer(validating_dataset, name='queue_runner2',
-                                                           shuffle=False)  # list of files to read
 filename_queue_testing = tf.train.string_input_producer(testing_dataset, name='queue_runner3', shuffle=False)
 
-images_t, labels_t, indexs_t = read_and_decode(filename_queue_training, batch_size=FLAGS.batch_size)
-images_v, labels_v, indexs_v = read_and_decode_validation(filename_queue_validation, batch_size=FLAGS.batch_size)
+
 images_p, labels_p, indexs_p = read_and_decode_validation(filename_queue_testing, batch_size=FLAGS.batch_size)
 
 
@@ -284,17 +269,26 @@ def train():
         # Create a saver.
         saver = tf.train.Saver(tf.global_variables())
 
+        # --------------- Restoring model
+
+        saver.restore(sess, "/home/mikelf/Datasets/T-lessV2/restore_models/model.ckpt-65000.data-00000-of-00001")
+        print("Model restored.")
+
+        # -------------------
+
         # Build the summary operation based on the TF collection of Summaries.
         summary_op = tf.summary.merge_all()
 
+        ### Not needed since we're restoring session
+
         # Build an initialization operation to run below.
-        init = tf.global_variables_initializer()
+        ##init = tf.global_variables_initializer()
 
         # Start running operations on the Graph.
         # sess = tf.Session(config=tf.ConfigProto(
         #    log_device_placement=FLAGS.log_device_placement))
 
-        sess.run(init)
+        ##sess.run(init)
 
         # Start the queue runners.
         tf.train.start_queue_runners(sess=sess)
@@ -319,126 +313,52 @@ def train():
         EPOCH = 0
         start_time_global = time.time()
 
-        for step in xrange(FLAGS.max_steps):
+        print(" Evaluating Dataset ")
 
-            #if step > 100: FLAGS.__setattr__("INITIAL_LEARNING_RATE", 0.001)
+        #assert not np.isnan(loss_value), 'Model diverged with loss = NaN'
 
+        # feeding data for evaluation
 
-            if (step % EPOCHS_NUM == 0) and step > 300 :
-                print("validating")
+        num_iter = int(math.ceil(FLAGS.num_examples / FLAGS.batch_size))
+        true_count = 0  # Counts the number of correct predictions.
+        total_sample_count = num_iter * FLAGS.batch_size
+        step = 0
+        x = []
 
-                #assert not np.isnan(loss_value), 'Model diverged with loss = NaN'
+        labels_eval = np.zeros(total_sample_count)
+        predictions_eval = np.zeros(total_sample_count)
 
-                if step != 0: EPOCH = EPOCH + 1
+        while step < num_iter:
+            images_batch, labels_batch, index_batch = sess.run([images_p, labels_p, indexs_p])
 
-                # feeding data for validation
+            predictions, weigths_shows, prediction_batch  = sess.run([top_k_op, weigths, prediction],
+                                   feed_dict={images: images_batch, labels: labels_batch, indexes: index_batch, keep_prob: 1.0})
 
-                images_batch, labels_batch, index_batch = sess.run([images_v, labels_v, indexs_v])
+            true_count += np.sum(predictions)
+            step += 1
+            x.extend(index_batch)
+            predictions_eval = np.append(predictions_eval, prediction_batch, axis=0)
+            labels_eval = np.append(labels_eval, labels_batch, axis=0)
 
-                # Run model
-                _, loss_value = sess.run([train_op, loss],
-                                         feed_dict={images: images_batch, labels: labels_batch, indexes: index_batch, keep_prob: 1.0})
+        print(len(x))
+        dupes = [xa for n, xa in enumerate(x) if xa in x[:n]]
+        # print(sorted(dupes))
+        print(len(dupes))
 
-                print('%s: loss = %.5f' % (datetime.now(), loss_value))
+        precision = true_count / total_sample_count
 
-                loss_valid = np.concatenate((loss_valid, [loss_value]))
-                steps_valid = np.concatenate((steps_valid, [EPOCH]))
+        print('%s: precision @ 1 = %.5f' % (datetime.now(), precision))
 
+        #print(weigths_shows)
 
-            elif ((step - 1) % EPOCHS_NUM == 0) and step > 300:
-                print("getting precision on test dataset")
+        print (predictions_eval.shape)
 
-                #assert not np.isnan(loss_value), 'Model diverged with loss = NaN'
+        precision_test = np.concatenate((precision_test, [precision]))
+        steps_precision = np.concatenate((steps_precision, [EPOCH]))
 
-                # feeding data for evaluation
+        confusion_matrix_predictions = np.concatenate((confusion_matrix_predictions, predictions_eval), axis=0)
+        confusion_matrix_labels = np.concatenate((confusion_matrix_labels, labels_eval), axis=0)
 
-                num_iter = int(math.ceil(FLAGS.num_examples / FLAGS.batch_size))
-                true_count = 0  # Counts the number of correct predictions.
-                total_sample_count = num_iter * FLAGS.batch_size
-                step = 0
-                x = []
-
-                labels_eval = np.zeros(total_sample_count)
-                predictions_eval = np.zeros(total_sample_count)
-
-                while step < num_iter:
-                    images_batch, labels_batch, index_batch = sess.run([images_p, labels_p, indexs_p])
-
-                    predictions, weigths_shows, prediction_batch  = sess.run([top_k_op, weigths, prediction],
-                                           feed_dict={images: images_batch, labels: labels_batch, indexes: index_batch, keep_prob: 1.0})
-
-                    true_count += np.sum(predictions)
-                    step += 1
-                    x.extend(index_batch)
-                    predictions_eval = np.append(predictions_eval, prediction_batch, axis=0)
-                    labels_eval = np.append(labels_eval, labels_batch, axis=0)
-
-                print(len(x))
-                dupes = [xa for n, xa in enumerate(x) if xa in x[:n]]
-                # print(sorted(dupes))
-                print(len(dupes))
-
-                precision = true_count / total_sample_count
-
-                print('%s: precision @ 1 = %.5f' % (datetime.now(), precision))
-
-                #print(weigths_shows)
-
-                print (predictions_eval.shape)
-
-                precision_test = np.concatenate((precision_test, [precision]))
-                steps_precision = np.concatenate((steps_precision, [EPOCH]))
-
-                confusion_matrix_predictions = np.concatenate((confusion_matrix_predictions, predictions_eval), axis=0)
-                confusion_matrix_labels = np.concatenate((confusion_matrix_labels, labels_eval), axis=0)
-
-
-            else:
-
-                #print("here")
-                #print (step)
-
-                start_time = time.time()
-
-                # feed data for training
-
-                images_batch, labels_batch, index_batch = sess.run([images_t, labels_t, indexs_t])
-
-                # Run model
-                _, loss_value = sess.run([train_op, loss],
-                                         feed_dict={images: images_batch, labels: labels_batch, indexes: index_batch, keep_prob: 0.5})
-
-                duration = time.time() - start_time
-
-
-                assert not np.isnan(loss_value), 'Model diverged with loss = NaN'
-
-                if step % 200 == 0:
-                    num_examples_per_step = FLAGS.batch_size
-                    examples_per_sec = num_examples_per_step / duration
-                    sec_per_batch = float(duration)
-
-                    format_str = ('%s: step %d, loss = %.2f (%.1f examples/sec; %.3f '
-                                  'sec/batch)')
-                    print(format_str % (datetime.now(), step, loss_value,
-                                        examples_per_sec, sec_per_batch))
-
-                if (step - 2) % EPOCHS_NUM == 0:
-                    loss_train = np.concatenate((loss_train, [loss_value]))
-                    steps_train = np.concatenate((steps_train, [EPOCH]))
-
-                # Save the model checkpoint periodically.
-                if step % 1000 == 0 or (step + 1) == FLAGS.max_steps:
-                    checkpoint_path = os.path.join(FLAGS.train_dir, 'model.ckpt')
-                    saver.save(sess, checkpoint_path, global_step=step)
-
-                    np.savez(FLAGS.train_dir + '_losses.npz', steps_train=steps_train, loss_train=loss_train,
-                             steps_valid=steps_valid, loss_valid=loss_valid,
-                             precision=precision_test, steps_precision=steps_precision, confusion_matrix_predictions=confusion_matrix_predictions,
-                             confusion_matrix_labels=confusion_matrix_labels)
-
-            if EPOCH == 400:
-                break
 
         final_time_global = time.time()
 
