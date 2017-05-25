@@ -30,6 +30,14 @@ import numpy as np
 import os
 import sys
 
+
+import itertools
+import matplotlib.pyplot as plt
+
+from sklearn import svm, datasets
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import confusion_matrix
+
 FLAGS = tf.app.flags.FLAGS
 
 tf.app.flags.DEFINE_string('train_dir', os.getcwd() + '/logs/vgg_train_rgb_16bs001lr_SGD_1p_data_1xranrot',
@@ -39,7 +47,7 @@ tf.app.flags.DEFINE_string('train_dir', os.getcwd() + '/logs/vgg_train_rgb_16bs0
 tf.app.flags.DEFINE_integer('max_steps', 100000,
                             """Number of batches to run.""")
 
-tf.app.flags.DEFINE_integer('num_examples', 3455,
+tf.app.flags.DEFINE_integer('num_examples', 62504,
                             """Number of examples for evaluation to run.""")
 
 tf.app.flags.DEFINE_boolean('log_device_placement', False,
@@ -50,7 +58,7 @@ tf.app.flags.DEFINE_integer('log_frequency', 10,
 tf.app.flags.DEFINE_float('INITIAL_LEARNING_RATE', 0.01,
                           """Number of examples to run.""")
 
-tf.app.flags.DEFINE_integer('batch_size', 16,
+tf.app.flags.DEFINE_integer('batch_size', 24,
                             """Number of images to process in a batch.""")
 
 IMAGE_SIZE = 227  # Taking full size
@@ -59,7 +67,7 @@ IMAGE_SIZE = 227  # Taking full size
 
 NUM_CLASSES = 30
 NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN = 1044  # 37584#18792#37584  # 4
-NUM_EXAMPLES_PER_EPOCH_FOR_EVAL = 3455
+NUM_EXAMPLES_PER_EPOCH_FOR_EVAL = 62504#3455
 
 EPOCHS_NUM = math.ceil(NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN / FLAGS.batch_size)
 
@@ -68,19 +76,49 @@ testing_dataset = ['/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-0
 '/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-00002-of-00004-full.tfrecords',
 '/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-00003-of-00004-full.tfrecords']
 
-training_dataset = [
-    '/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-00000-of-00004-full.tfrecords',
-'/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-00001-of-00004-full.tfrecords',
-'/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-00002-of-00004-full.tfrecords',
-'/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-00003-of-00004-full.tfrecords']
-
-validating_dataset = [
-    '/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-00000-of-00004-full.tfrecords',
-'/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-00001-of-00004-full.tfrecords',
-'/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-00002-of-00004-full.tfrecords',
-'/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-00003-of-00004-full.tfrecords']
+#testing_dataset =['/home/mikelf/Datasets/T-lessV2/shards/test_10percent/tless_test-00000-of-00004-10percent.tfrecords',
+#'/home/mikelf/Datasets/T-lessV2/shards/test_10percent/tless_test-00001-of-00004-10percent.tfrecords',
+#'/home/mikelf/Datasets/T-lessV2/shards/test_10percent/tless_test-00002-of-00004-10percent.tfrecords',
+#'/home/mikelf/Datasets/T-lessV2/shards/test_10percent/tless_test-00003-of-00004-10percent.tfrecords']
 
 EPOCHS_NUM = math.ceil(NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN / FLAGS.batch_size)
+
+
+
+def plot_confusion_matrix(cm, classes,
+                          normalize=False,
+                          title='Confusion matrix',
+                          cmap=plt.cm.Blues):
+    """
+    This function prints and plots the confusion matrix.
+    Normalization can be applied by setting `normalize=True`.
+    """
+    plt.imshow(cm, interpolation='nearest', cmap=cmap)
+    plt.title(title)
+    plt.colorbar()
+    tick_marks = np.arange(len(classes))
+    plt.xticks(tick_marks, classes, rotation=45)
+    plt.yticks(tick_marks, classes)
+
+    if normalize:
+        cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+        print("Normalized confusion matrix")
+    else:
+        print('Confusion matrix, without normalization')
+
+    print(cm)
+
+    thresh = cm.max() / 2.
+    #for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
+    #    plt.text(j, i, cm[i, j],
+    #             horizontalalignment="center",
+    #             color="white" if cm[i, j] > thresh else "black")
+
+    plt.tight_layout()
+    plt.ylabel('True label')
+    plt.xlabel('Predicted label')
+
+
 
 
 def _generate_image_and_label_batch(image, label, min_queue_examples,
@@ -236,14 +274,8 @@ def read_and_decode_validation(filename_queue, batch_size):
 
 
 # Getting data for feeding------------------------------------------------------------------------------------------------------
-
-filename_queue_training = tf.train.string_input_producer(training_dataset, name='queue_runner1', shuffle=False)
-filename_queue_validation = tf.train.string_input_producer(validating_dataset, name='queue_runner2',
-                                                           shuffle=False)  # list of files to read
 filename_queue_testing = tf.train.string_input_producer(testing_dataset, name='queue_runner3', shuffle=False)
 
-images_t, labels_t, indexs_t = read_and_decode(filename_queue_training, batch_size=FLAGS.batch_size)
-images_v, labels_v, indexs_v = read_and_decode_validation(filename_queue_validation, batch_size=FLAGS.batch_size)
 images_p, labels_p, indexs_p = read_and_decode_validation(filename_queue_testing, batch_size=FLAGS.batch_size)
 
 
@@ -252,7 +284,7 @@ images_p, labels_p, indexs_p = read_and_decode_validation(filename_queue_testing
 def train():
     sys.stdout.write("\033[93m")  # yellow message
 
-    print("Experiment: 1% original plus x1 rotations")
+    print("Load and test model")
 
     sys.stdout.write("\033[0;0m")
 
@@ -275,6 +307,10 @@ def train():
 
         top_k_op = tf.nn.in_top_k(logits, labels, 1)
 
+        prediction = tf.argmax(logits, 1)
+
+        #cmatix = tf.contrib.metrics.confusion_matrix(prediction, labels)
+
         # Build a Graph that trains the model with one batch of examples and
         # updates the model parameters.
         train_op = vgg.train(loss, global_step)
@@ -284,13 +320,20 @@ def train():
         # Create a saver.
         saver = tf.train.Saver(tf.global_variables())
 
+        # Restore the moving average version of the learned variables for eval.
+
+        #variable_averages = tf.train.ExponentialMovingAverage(
+        #    vgg.MOVING_AVERAGE_DECAY)
+        #variables_to_restore = variable_averages.variables_to_restore()
+        #saver = tf.train.Saver(variables_to_restore)
+
 
         #saver = tf.train.import_meta_graph('/home/mikelf/Datasets/T-lessV2/restore_models/model.ckpt-61000.meta')
 
 
-        saver.restore(sess, "/home/mikelf/Datasets/T-lessV2/restore_models/model.ckpt-65000")
+        saver.restore(sess, "/home/mikelf/Datasets/T-lessV2/restore_models/vgg_train_rgb_16bs001lr_SGD_50p_data_x1randrot_2nd/model.ckpt-78000")
 
-        sess.run(tf.global_variables_initializer())
+        #sess.run(tf.global_variables_initializer())
 
 
         print("Model restored.")
@@ -308,8 +351,10 @@ def train():
 
         ##sess.run(init)
 
+        coord = tf.train.Coordinator()
+
         # Start the queue runners.
-        tf.train.start_queue_runners(sess=sess)
+        threads = tf.train.start_queue_runners(sess=sess, coord=coord)
 
         # summary_writer = tf.summary.FileWriter(FLAGS.train_dir, sess.graph)
         summary_writer_train = tf.summary.FileWriter(FLAGS.train_dir, sess.graph)
@@ -339,16 +384,26 @@ def train():
         total_sample_count = num_iter * FLAGS.batch_size
         step = 0
         x = []
+        cf_matrix_array = []
+        labels_array = []
+
         while step < num_iter:
             images_batch, labels_batch, index_batch = sess.run([images_p, labels_p, indexs_p])
 
-            predictions = sess.run([top_k_op],
+            predictions, cf_matrix = sess.run([top_k_op, prediction],
                                    feed_dict={images: images_batch, labels: labels_batch, indexes: index_batch,
                                               keep_prob: 1.0})
 
             true_count += np.sum(predictions)
             step += 1
             x.extend(index_batch)
+            cf_matrix_array = np.append(cf_matrix_array, cf_matrix, axis=0)
+            labels_array = np.append(labels_array, labels_batch, axis=0)
+
+
+
+
+        print(cf_matrix_array.shape)
 
         print(len(x))
         dupes = [xa for n, xa in enumerate(x) if xa in x[:n]]
@@ -368,6 +423,28 @@ def train():
         print("Finish")
 
         print(final_time_global - start_time_global)
+
+        cnf_matrix = confusion_matrix(labels_array, cf_matrix_array)
+        np.set_printoptions(precision=2)
+
+        class_names = ['1',  '2',   '3',  '4',  '5',  '6',  '7',  '8',  '9', '10',
+                       '11', '12', '13', '14', '15', '16', '17', '18', '19', '20',
+                       '21', '22', '23', '24', '25', '26', '27', '28', '29', '30']
+
+        # Plot non-normalized confusion matrix
+        plt.figure()
+        plot_confusion_matrix(cnf_matrix, classes=class_names,
+                              title='Confusion matrix, without normalization')
+
+        # Plot normalized confusion matrix
+        #plt.figure()
+        #plot_confusion_matrix(cnf_matrix, classes=class_names, normalize=True,
+        #                      title='Normalized confusion matrix')
+
+        plt.show()
+
+        coord.request_stop()
+        coord.join(threads)
 
         sess.close()
 
