@@ -28,11 +28,11 @@ import tensorflow as tf
 import vgg
 import numpy as np
 import os
-
+import sys
 
 FLAGS = tf.app.flags.FLAGS
 
-tf.app.flags.DEFINE_string('train_dir', os.getcwd() + '/logs/vgg_train_rgb_16bs01lr_SGD_data_pp_cm',
+tf.app.flags.DEFINE_string('train_dir', os.getcwd() + '/logs/vgg_train_rgb_16bs001lr_SGD_1p_data_1xranrot',
                            """Directory where to write event logs """
                            """and checkpoint.""")
 
@@ -42,14 +42,13 @@ tf.app.flags.DEFINE_integer('max_steps', 100000,
 tf.app.flags.DEFINE_integer('num_examples', 3455,
                             """Number of examples for evaluation to run.""")
 
-
 tf.app.flags.DEFINE_boolean('log_device_placement', False,
                             """Whether to log device placement.""")
 tf.app.flags.DEFINE_integer('log_frequency', 10,
                             """How often to log results to the console.""")
 
 tf.app.flags.DEFINE_float('INITIAL_LEARNING_RATE', 0.01,
-                           """Number of examples to run.""")
+                          """Number of examples to run.""")
 
 tf.app.flags.DEFINE_integer('batch_size', 16,
                             """Number of images to process in a batch.""")
@@ -59,16 +58,27 @@ IMAGE_SIZE = 227  # Taking full size
 # Global constants describing the t-lessv2 data set.
 
 NUM_CLASSES = 30
-NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN = 3455#37584  # 4
+NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN = 1044  # 37584#18792#37584  # 4
 NUM_EXAMPLES_PER_EPOCH_FOR_EVAL = 3455
 
 EPOCHS_NUM = math.ceil(NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN / FLAGS.batch_size)
 
-testing_dataset =['/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-00000-of-00004-full.tfrecords',
+testing_dataset = ['/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-00000-of-00004-full.tfrecords',
 '/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-00001-of-00004-full.tfrecords',
 '/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-00002-of-00004-full.tfrecords',
 '/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-00003-of-00004-full.tfrecords']
 
+training_dataset = [
+    '/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-00000-of-00004-full.tfrecords',
+'/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-00001-of-00004-full.tfrecords',
+'/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-00002-of-00004-full.tfrecords',
+'/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-00003-of-00004-full.tfrecords']
+
+validating_dataset = [
+    '/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-00000-of-00004-full.tfrecords',
+'/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-00001-of-00004-full.tfrecords',
+'/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-00002-of-00004-full.tfrecords',
+'/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-00003-of-00004-full.tfrecords']
 
 EPOCHS_NUM = math.ceil(NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN / FLAGS.batch_size)
 
@@ -130,21 +140,21 @@ def read_and_decode(filename_queue, batch_size):
     image = tf.image.decode_image(features['image/encoded'])
 
     image = tf.reshape(image, [IMAGE_SIZE, IMAGE_SIZE, 3])
-    image.set_shape([IMAGE_SIZE, IMAGE_SIZE,3])
+    image.set_shape([IMAGE_SIZE, IMAGE_SIZE, 3])
 
     # *------------------- pre processing
 
     distorted_image = tf.cast(image, tf.float32)
 
     # Randomly flip the image horizontally.
-    #distorted_image = tf.image.random_flip_left_right(distorted_image)
+    # distorted_image = tf.image.random_flip_left_right(distorted_image)
 
     # Because these operations are not commutative, consider randomizing
     # the order their operation.
-    #distorted_image = tf.image.random_brightness(distorted_image,
+    # distorted_image = tf.image.random_brightness(distorted_image,
     #                                             max_delta=63)
 
-    #distorted_image = tf.image.random_contrast(distorted_image,
+    # distorted_image = tf.image.random_contrast(distorted_image,
     #                                           lower=0.2, upper=1.8)
 
     # Subtract off the mean and divide by the variance of the pixels.
@@ -226,16 +236,25 @@ def read_and_decode_validation(filename_queue, batch_size):
 
 
 # Getting data for feeding------------------------------------------------------------------------------------------------------
+
+filename_queue_training = tf.train.string_input_producer(training_dataset, name='queue_runner1', shuffle=False)
+filename_queue_validation = tf.train.string_input_producer(validating_dataset, name='queue_runner2',
+                                                           shuffle=False)  # list of files to read
 filename_queue_testing = tf.train.string_input_producer(testing_dataset, name='queue_runner3', shuffle=False)
 
-
+images_t, labels_t, indexs_t = read_and_decode(filename_queue_training, batch_size=FLAGS.batch_size)
+images_v, labels_v, indexs_v = read_and_decode_validation(filename_queue_validation, batch_size=FLAGS.batch_size)
 images_p, labels_p, indexs_p = read_and_decode_validation(filename_queue_testing, batch_size=FLAGS.batch_size)
 
 
 # ----------------------------------------------------------------------------------------------------------------------------
 
 def train():
+    sys.stdout.write("\033[93m")  # yellow message
 
+    print("Experiment: 1% original plus x1 rotations")
+
+    sys.stdout.write("\033[0;0m")
 
     with tf.Session() as sess:
 
@@ -244,42 +263,41 @@ def train():
         images = tf.placeholder(tf.float32, shape=(FLAGS.batch_size, IMAGE_SIZE, IMAGE_SIZE, 3))
         labels = tf.placeholder(tf.int32, shape=(FLAGS.batch_size))
         indexes = tf.placeholder(tf.int32, shape=(FLAGS.batch_size))
-        #mode_eval = tf.placeholder(tf.bool, shape=())
+        # mode_eval = tf.placeholder(tf.bool, shape=())
         keep_prob = tf.placeholder(tf.float32)
 
         # Build a Graph that computes the logits predictions from the
         # inference model.
-        logits, weigths = vgg.inference(images, keep_prob)
+        logits = vgg.inference(images, keep_prob)
 
         # Calculate loss.
         loss = vgg.loss(logits, labels)
 
         top_k_op = tf.nn.in_top_k(logits, labels, 1)
 
-        prediction = tf.argmax(logits, 1)
-
-        cmatix = tf.contrib.metrics.confusion_matrix(prediction, labels)
-
         # Build a Graph that trains the model with one batch of examples and
         # updates the model parameters.
         train_op = vgg.train(loss, global_step)
 
-        #train = tf.train.GradientDescentOptimizer(0.00001).minimize(loss)
+        # train = tf.train.GradientDescentOptimizer(0.00001).minimize(loss)
 
         # Create a saver.
         saver = tf.train.Saver(tf.global_variables())
 
-        # --------------- Restoring model
 
-        saver.restore(sess, "/home/mikelf/Datasets/T-lessV2/restore_models/model.ckpt-65000.data-00000-of-00001")
+        #saver = tf.train.import_meta_graph('/home/mikelf/Datasets/T-lessV2/restore_models/model.ckpt-61000.meta')
+
+
+        saver.restore(sess, "/home/mikelf/Datasets/T-lessV2/restore_models/model.ckpt-65000")
+
+        sess.run(tf.global_variables_initializer())
+
+
         print("Model restored.")
-
-        # -------------------
 
         # Build the summary operation based on the TF collection of Summaries.
         summary_op = tf.summary.merge_all()
 
-        ### Not needed since we're restoring session
 
         # Build an initialization operation to run below.
         ##init = tf.global_variables_initializer()
@@ -307,15 +325,12 @@ def train():
         steps_valid = np.array([])
         steps_precision = np.array([])
 
-        confusion_matrix_predictions = np.array([])
-        confusion_matrix_labels = np.array([])
-
         EPOCH = 0
         start_time_global = time.time()
 
-        print(" Evaluating Dataset ")
+        print("getting precision on test dataset")
 
-        #assert not np.isnan(loss_value), 'Model diverged with loss = NaN'
+        # assert not np.isnan(loss_value), 'Model diverged with loss = NaN'
 
         # feeding data for evaluation
 
@@ -324,21 +339,16 @@ def train():
         total_sample_count = num_iter * FLAGS.batch_size
         step = 0
         x = []
-
-        labels_eval = np.zeros(total_sample_count)
-        predictions_eval = np.zeros(total_sample_count)
-
         while step < num_iter:
             images_batch, labels_batch, index_batch = sess.run([images_p, labels_p, indexs_p])
 
-            predictions, weigths_shows, prediction_batch  = sess.run([top_k_op, weigths, prediction],
-                                   feed_dict={images: images_batch, labels: labels_batch, indexes: index_batch, keep_prob: 1.0})
+            predictions = sess.run([top_k_op],
+                                   feed_dict={images: images_batch, labels: labels_batch, indexes: index_batch,
+                                              keep_prob: 1.0})
 
             true_count += np.sum(predictions)
             step += 1
             x.extend(index_batch)
-            predictions_eval = np.append(predictions_eval, prediction_batch, axis=0)
-            labels_eval = np.append(labels_eval, labels_batch, axis=0)
 
         print(len(x))
         dupes = [xa for n, xa in enumerate(x) if xa in x[:n]]
@@ -349,15 +359,8 @@ def train():
 
         print('%s: precision @ 1 = %.5f' % (datetime.now(), precision))
 
-        #print(weigths_shows)
-
-        print (predictions_eval.shape)
-
         precision_test = np.concatenate((precision_test, [precision]))
         steps_precision = np.concatenate((steps_precision, [EPOCH]))
-
-        confusion_matrix_predictions = np.concatenate((confusion_matrix_predictions, predictions_eval), axis=0)
-        confusion_matrix_labels = np.concatenate((confusion_matrix_labels, labels_eval), axis=0)
 
 
         final_time_global = time.time()
@@ -373,10 +376,8 @@ def train():
         # ================================
 
 
-
-
 def main(argv=None):
-    #vgg.maybe_download_and_extract()
+    # vgg.maybe_download_and_extract()
     if tf.gfile.Exists(FLAGS.train_dir):
         tf.gfile.DeleteRecursively(FLAGS.train_dir)
     tf.gfile.MakeDirs(FLAGS.train_dir)
@@ -384,4 +385,4 @@ def main(argv=None):
 
 
 if __name__ == '__main__':
-  tf.app.run()
+    tf.app.run()
