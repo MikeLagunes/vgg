@@ -32,7 +32,7 @@ import os
 
 FLAGS = tf.app.flags.FLAGS
 
-tf.app.flags.DEFINE_string('train_dir', os.getcwd() + '/logs/vgg_train_rgb_16bs01lr_SGD_data_pp_cm',
+tf.app.flags.DEFINE_string('train_dir', os.getcwd() + '/logs/vgg_train_rgb_16bs01lr_SGD_100p_1xranrot',
                            """Directory where to write event logs """
                            """and checkpoint.""")
 
@@ -59,7 +59,7 @@ IMAGE_SIZE = 227  # Taking full size
 # Global constants describing the t-lessv2 data set.
 
 NUM_CLASSES = 30
-NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN = 3455#37584  # 4
+NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN = 75168#37584522#3455#37584  # 4
 NUM_EXAMPLES_PER_EPOCH_FOR_EVAL = 3455
 
 EPOCHS_NUM = math.ceil(NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN / FLAGS.batch_size)
@@ -69,15 +69,15 @@ testing_dataset =['/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-00
 '/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-00002-of-00004-full.tfrecords',
 '/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-00003-of-00004-full.tfrecords']
 
-training_dataset =['/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-00000-of-00004-full.tfrecords',
-'/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-00001-of-00004-full.tfrecords',
-'/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-00002-of-00004-full.tfrecords',
-'/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-00003-of-00004-full.tfrecords']
+training_dataset =['/home/mikelf/Datasets/T-lessV2/shards/RGB_100percent_x1rot/train-00000-of-00004-slim_rgb_rotatedx1.tfrecords',
+'/home/mikelf/Datasets/T-lessV2/shards/RGB_100percent_x1rot/train-00001-of-00004-slim_rgb_rotatedx1.tfrecords',
+'/home/mikelf/Datasets/T-lessV2/shards/RGB_100percent_x1rot/train-00002-of-00004-slim_rgb_rotatedx1.tfrecords',
+'/home/mikelf/Datasets/T-lessV2/shards/RGB_100percent_x1rot/train-00003-of-00004-slim_rgb_rotatedx1.tfrecords']
 
-validating_dataset =['/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-00000-of-00004-full.tfrecords',
-'/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-00001-of-00004-full.tfrecords',
-'/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-00002-of-00004-full.tfrecords',
-'/home/mikelf/Datasets/T-lessV2/shards/test_full/tless_test-00003-of-00004-full.tfrecords']
+validating_dataset =['/home/mikelf/Datasets/T-lessV2/shards/RGB_100percent/validation-00000-of-00004-slim_rgb_cropped.tfrecords',
+'/home/mikelf/Datasets/T-lessV2/shards/RGB_100percent/validation-00001-of-00004-slim_rgb_cropped.tfrecords',
+'/home/mikelf/Datasets/T-lessV2/shards/RGB_100percent/validation-00002-of-00004-slim_rgb_cropped.tfrecords',
+'/home/mikelf/Datasets/T-lessV2/shards/RGB_100percent/validation-00003-of-00004-slim_rgb_cropped.tfrecords']
 
 
 EPOCHS_NUM = math.ceil(NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN / FLAGS.batch_size)
@@ -264,7 +264,7 @@ def train():
 
         # Build a Graph that computes the logits predictions from the
         # inference model.
-        logits, weigths = vgg.inference(images, keep_prob)
+        logits = vgg.inference(images, keep_prob)
 
         # Calculate loss.
         loss = vgg.loss(logits, labels)
@@ -352,45 +352,45 @@ def train():
 
                 # feeding data for evaluation
 
-                num_iter = int(math.ceil(FLAGS.num_examples / FLAGS.batch_size))
-                true_count = 0  # Counts the number of correct predictions.
-                total_sample_count = num_iter * FLAGS.batch_size
-                step = 0
-                x = []
-
-                labels_eval = np.zeros(total_sample_count)
-                predictions_eval = np.zeros(total_sample_count)
-
-                while step < num_iter:
-                    images_batch, labels_batch, index_batch = sess.run([images_p, labels_p, indexs_p])
-
-                    predictions, weigths_shows, prediction_batch  = sess.run([top_k_op, weigths, prediction],
-                                           feed_dict={images: images_batch, labels: labels_batch, indexes: index_batch, keep_prob: 1.0})
-
-                    true_count += np.sum(predictions)
-                    step += 1
-                    x.extend(index_batch)
-                    predictions_eval = np.append(predictions_eval, prediction_batch, axis=0)
-                    labels_eval = np.append(labels_eval, labels_batch, axis=0)
-
-                print(len(x))
-                dupes = [xa for n, xa in enumerate(x) if xa in x[:n]]
-                # print(sorted(dupes))
-                print(len(dupes))
-
-                precision = true_count / total_sample_count
-
-                print('%s: precision @ 1 = %.5f' % (datetime.now(), precision))
-
-                #print(weigths_shows)
-
-                print (predictions_eval.shape)
-
-                precision_test = np.concatenate((precision_test, [precision]))
-                steps_precision = np.concatenate((steps_precision, [EPOCH]))
-
-                confusion_matrix_predictions = np.concatenate((confusion_matrix_predictions, predictions_eval), axis=0)
-                confusion_matrix_labels = np.concatenate((confusion_matrix_labels, labels_eval), axis=0)
+                # num_iter = int(math.ceil(FLAGS.num_examples / FLAGS.batch_size))
+                # true_count = 0  # Counts the number of correct predictions.
+                # total_sample_count = num_iter * FLAGS.batch_size
+                # step = 0
+                # x = []
+                #
+                # labels_eval = np.zeros(total_sample_count)
+                # predictions_eval = np.zeros(total_sample_count)
+                #
+                # while step < num_iter:
+                #     images_batch, labels_batch, index_batch = sess.run([images_p, labels_p, indexs_p])
+                #
+                #     predictions, weigths_shows, prediction_batch  = sess.run([top_k_op, weigths, prediction],
+                #                            feed_dict={images: images_batch, labels: labels_batch, indexes: index_batch, keep_prob: 1.0})
+                #
+                #     true_count += np.sum(predictions)
+                #     step += 1
+                #     x.extend(index_batch)
+                #     predictions_eval = np.append(predictions_eval, prediction_batch, axis=0)
+                #     labels_eval = np.append(labels_eval, labels_batch, axis=0)
+                #
+                # print(len(x))
+                # dupes = [xa for n, xa in enumerate(x) if xa in x[:n]]
+                # # print(sorted(dupes))
+                # print(len(dupes))
+                #
+                # precision = true_count / total_sample_count
+                #
+                # print('%s: precision @ 1 = %.5f' % (datetime.now(), precision))
+                #
+                # #print(weigths_shows)
+                #
+                # print (predictions_eval.shape)
+                #
+                # precision_test = np.concatenate((precision_test, [precision]))
+                # steps_precision = np.concatenate((steps_precision, [EPOCH]))
+                #
+                # confusion_matrix_predictions = np.concatenate((confusion_matrix_predictions, predictions_eval), axis=0)
+                # confusion_matrix_labels = np.concatenate((confusion_matrix_labels, labels_eval), axis=0)
 
 
             else:

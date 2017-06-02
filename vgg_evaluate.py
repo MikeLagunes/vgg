@@ -102,11 +102,11 @@ def plot_confusion_matrix(cm, classes,
 
     if normalize:
         cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
-        print("Normalized confusion matrix")
-    else:
-        print('Confusion matrix, without normalization')
+    #    print("Normalized confusion matrix")
+    #else:
+    #    print('Confusion matrix, without normalization')
 
-    print(cm)
+    #print(cm)
 
     thresh = cm.max() / 2.
     #for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
@@ -331,7 +331,9 @@ def train():
         #saver = tf.train.import_meta_graph('/home/mikelf/Datasets/T-lessV2/restore_models/model.ckpt-61000.meta')
 
 
-        saver.restore(sess, "/home/mikelf/Datasets/T-lessV2/restore_models/vgg_train_rgb_16bs001lr_SGD_50p_data_x1randrot_2nd/model.ckpt-78000")
+        saver.restore(sess, "/home/mikelf/experiments/full_test/vgg_scratch/100p/checkpoint/vgg_train_rgb_16bs01lr_SGD_100p/model.ckpt-85000")
+
+
 
         #sess.run(tf.global_variables_initializer())
 

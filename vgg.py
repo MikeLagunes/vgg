@@ -40,7 +40,7 @@ tf.app.flags.DEFINE_boolean('use_fp16', False,
 # Basic model parameters.
 
 NUM_CLASSES = 30
-NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN = 1044#18792#37584  # 4
+NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN = 75168#522#1044#18792#37584  # 4
 NUM_EXAMPLES_PER_EPOCH_FOR_EVAL = 3455
 
 # Constants describing the training process.
