@@ -348,50 +348,6 @@ def train():
             elif ((step - 1) % EPOCHS_NUM == 0) and step > 300:
                 print("getting precision on test dataset")
 
-                #assert not np.isnan(loss_value), 'Model diverged with loss = NaN'
-
-                # feeding data for evaluation
-
-                # num_iter = int(math.ceil(FLAGS.num_examples / FLAGS.batch_size))
-                # true_count = 0  # Counts the number of correct predictions.
-                # total_sample_count = num_iter * FLAGS.batch_size
-                # step = 0
-                # x = []
-                #
-                # labels_eval = np.zeros(total_sample_count)
-                # predictions_eval = np.zeros(total_sample_count)
-                #
-                # while step < num_iter:
-                #     images_batch, labels_batch, index_batch = sess.run([images_p, labels_p, indexs_p])
-                #
-                #     predictions, weigths_shows, prediction_batch  = sess.run([top_k_op, weigths, prediction],
-                #                            feed_dict={images: images_batch, labels: labels_batch, indexes: index_batch, keep_prob: 1.0})
-                #
-                #     true_count += np.sum(predictions)
-                #     step += 1
-                #     x.extend(index_batch)
-                #     predictions_eval = np.append(predictions_eval, prediction_batch, axis=0)
-                #     labels_eval = np.append(labels_eval, labels_batch, axis=0)
-                #
-                # print(len(x))
-                # dupes = [xa for n, xa in enumerate(x) if xa in x[:n]]
-                # # print(sorted(dupes))
-                # print(len(dupes))
-                #
-                # precision = true_count / total_sample_count
-                #
-                # print('%s: precision @ 1 = %.5f' % (datetime.now(), precision))
-                #
-                # #print(weigths_shows)
-                #
-                # print (predictions_eval.shape)
-                #
-                # precision_test = np.concatenate((precision_test, [precision]))
-                # steps_precision = np.concatenate((steps_precision, [EPOCH]))
-                #
-                # confusion_matrix_predictions = np.concatenate((confusion_matrix_predictions, predictions_eval), axis=0)
-                # confusion_matrix_labels = np.concatenate((confusion_matrix_labels, labels_eval), axis=0)
-
 
             else:
 
