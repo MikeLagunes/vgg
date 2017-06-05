@@ -151,11 +151,11 @@ def read_and_decode(filename_queue, batch_size):
 
     # Because these operations are not commutative, consider randomizing
     # the order their operation.
-    #distorted_image = tf.image.random_brightness(distorted_image,
-    #                                             max_delta=63)
+    distorted_image = tf.image.random_brightness(distorted_image,
+                                                 max_delta=63)
 
-    #distorted_image = tf.image.random_contrast(distorted_image,
-    #                                           lower=0.2, upper=1.8)
+    distorted_image = tf.image.random_contrast(distorted_image,
+                                               lower=0.2, upper=1.8)
 
     # Subtract off the mean and divide by the variance of the pixels.
     float_image = tf.image.per_image_standardization(distorted_image)
@@ -251,6 +251,8 @@ images_p, labels_p, indexs_p = read_and_decode_validation(filename_queue_testing
 
 def train():
 
+    print (FLAGS.train_dir)
+
 
     with tf.Session() as sess:
 
@@ -273,6 +275,8 @@ def train():
 
         prediction = tf.argmax(logits, 1)
 
+        #tf.summary.scalar('prediction', loss)
+
         cmatix = tf.contrib.metrics.confusion_matrix(prediction, labels)
 
         # Build a Graph that trains the model with one batch of examples and
@@ -281,28 +285,25 @@ def train():
 
         #train = tf.train.GradientDescentOptimizer(0.00001).minimize(loss)
 
-        # Create a saver.
-        saver = tf.train.Saver(tf.global_variables())
+        tf.summary.scalar('dropout_keep_probability', keep_prob)
 
         # Build the summary operation based on the TF collection of Summaries.
-        summary_op = tf.summary.merge_all()
+        summary_op =tf.summary.merge_all()
+
+        # summary_writer = tf.summary.FileWriter(FLAGS.train_dir, sess.graph)
+        writer = tf.summary.FileWriter(FLAGS.train_dir, sess.graph)
+        # summary_writer_validation = tf.summary.FileWriter(FLAGS.validate_dir)
 
         # Build an initialization operation to run below.
         init = tf.global_variables_initializer()
-
-        # Start running operations on the Graph.
-        # sess = tf.Session(config=tf.ConfigProto(
-        #    log_device_placement=FLAGS.log_device_placement))
 
         sess.run(init)
 
         # Start the queue runners.
         tf.train.start_queue_runners(sess=sess)
 
-        # summary_writer = tf.summary.FileWriter(FLAGS.train_dir, sess.graph)
-        summary_writer_train = tf.summary.FileWriter(FLAGS.train_dir, sess.graph)
-        # summary_writer_validation = tf.summary.FileWriter(FLAGS.validate_dir)
-
+        # Create a saver.
+        saver = tf.train.Saver(tf.global_variables())
 
 
         loss_train = np.array([])
@@ -344,11 +345,6 @@ def train():
                 loss_valid = np.concatenate((loss_valid, [loss_value]))
                 steps_valid = np.concatenate((steps_valid, [EPOCH]))
 
-
-            elif ((step - 1) % EPOCHS_NUM == 0) and step > 300:
-                print("getting precision on test dataset")
-
-
             else:
 
                 #print("here")
@@ -361,13 +357,18 @@ def train():
                 images_batch, labels_batch, index_batch = sess.run([images_t, labels_t, indexs_t])
 
                 # Run model
-                _, loss_value = sess.run([train_op, loss],
+                _, loss_value, summary_str = sess.run([train_op, loss, summary_op],
                                          feed_dict={images: images_batch, labels: labels_batch, indexes: index_batch, keep_prob: 0.5})
 
                 duration = time.time() - start_time
 
 
                 assert not np.isnan(loss_value), 'Model diverged with loss = NaN'
+
+                if step % 10 == 0:
+                    #summary_str = sess.run([summary_op],
+                    #                     feed_dict={images: images_batch, labels: labels_batch, indexes: index_batch, keep_prob: 0.5})
+                    writer.add_summary(summary_str, step)
 
                 if step % 200 == 0:
                     num_examples_per_step = FLAGS.batch_size
